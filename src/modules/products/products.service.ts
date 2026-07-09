@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
 import { Prisma, ProductStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -28,6 +29,7 @@ export class ProductsService {
     private readonly prisma: PrismaService,
     private readonly inventory: InventoryService,
     private readonly skus: SkuService,
+    private readonly config: ConfigService,
   ) {}
 
   async findAll(options: { includeDeleted?: boolean } = {}) {
@@ -63,7 +65,7 @@ export class ProductsService {
     const product = await this.prisma.transaction(async (tx) => {
       const productId = randomUUID();
       const now = new Date();
-      const primaryImageUrl = this.primaryImageUrl(dto.images) ?? '';
+      const primaryImageUrl = this.normalizeMediaPath(this.primaryImageUrl(dto.images)) ?? '';
       await tx.$executeRaw`
         INSERT INTO "Product" (
           "id", "name", "slug", "sku", "brand", "description", "shortDescription",
@@ -324,9 +326,9 @@ export class ProductsService {
         unit: variant.unit ? normalizeUnit(variant.unit) : undefined,
         customUnit: variant.customUnit,
         imageUrls: variant.imageUrls?.length
-          ? variant.imageUrls
+          ? variant.imageUrls.map((url) => this.normalizeMediaPath(url)).filter((url): url is string => !!url)
           : variant.imageUrl
-            ? [variant.imageUrl]
+            ? [this.normalizeMediaPath(variant.imageUrl)].filter((url): url is string => !!url)
             : [],
         sortOrder: index,
         updatedAt: new Date(),
@@ -350,9 +352,9 @@ export class ProductsService {
       unit: variant.unit ? normalizeUnit(variant.unit) : undefined,
       customUnit: variant.customUnit,
       imageUrls: variant.imageUrls?.length
-        ? variant.imageUrls
+        ? variant.imageUrls.map((url) => this.normalizeMediaPath(url)).filter((url): url is string => !!url)
         : variant.imageUrl
-          ? [variant.imageUrl]
+          ? [this.normalizeMediaPath(variant.imageUrl)].filter((url): url is string => !!url)
           : [],
       sortOrder: index,
       updatedAt: new Date(),
@@ -458,14 +460,16 @@ export class ProductsService {
     const rows: Prisma.ProductImageCreateWithoutProductInput[] = [];
     for (const [index, image] of (images ?? []).entries()) {
       if (typeof image === 'string') {
-        rows.push({ id: randomUUID(), url: image, sortOrder: index, isPrimary: index === 0 });
+        const url = this.normalizeMediaPath(image);
+        if (url) rows.push({ id: randomUUID(), url, sortOrder: index, isPrimary: index === 0 });
         continue;
       }
 
-      if (image.url) {
+      const url = this.normalizeMediaPath(image.url);
+      if (url) {
         rows.push({
           id: randomUUID(),
-          url: image.url,
+          url,
           sortOrder: image.sortOrder ?? index,
           isPrimary: image.isPrimary ?? index === 0,
         });
@@ -482,15 +486,17 @@ export class ProductsService {
     const rows: Prisma.ProductImageCreateManyInput[] = [];
     for (const [index, image] of (images ?? []).entries()) {
       if (typeof image === 'string') {
-        rows.push({ id: randomUUID(), productId, url: image, sortOrder: index, isPrimary: index === 0 });
+        const url = this.normalizeMediaPath(image);
+        if (url) rows.push({ id: randomUUID(), productId, url, sortOrder: index, isPrimary: index === 0 });
         continue;
       }
 
-      if (image.url) {
+      const url = this.normalizeMediaPath(image.url);
+      if (url) {
         rows.push({
           id: randomUUID(),
           productId,
-          url: image.url,
+          url,
           sortOrder: image.sortOrder ?? index,
           isPrimary: image.isPrimary ?? index === 0,
         });
@@ -503,11 +509,12 @@ export class ProductsService {
     const rows: Prisma.ProductVideoCreateWithoutProductInput[] = [];
     for (const [index, video] of (videos ?? []).entries()) {
       if (typeof video === 'string') {
-        rows.push({ id: randomUUID(), videoUrl: video, sortOrder: index });
+        const videoUrl = this.normalizeMediaPath(video);
+        if (videoUrl) rows.push({ id: randomUUID(), videoUrl, sortOrder: index });
         continue;
       }
 
-      const videoUrl = video.videoUrl ?? video.url;
+      const videoUrl = this.normalizeMediaPath(video.videoUrl ?? video.url);
       if (videoUrl) {
         rows.push({ id: randomUUID(), videoUrl, sortOrder: video.sortOrder ?? index });
       }
@@ -523,11 +530,12 @@ export class ProductsService {
     const rows: Prisma.ProductVideoCreateManyInput[] = [];
     for (const [index, video] of (videos ?? []).entries()) {
       if (typeof video === 'string') {
-        rows.push({ id: randomUUID(), productId, videoUrl: video, sortOrder: index });
+        const videoUrl = this.normalizeMediaPath(video);
+        if (videoUrl) rows.push({ id: randomUUID(), productId, videoUrl, sortOrder: index });
         continue;
       }
 
-      const videoUrl = video.videoUrl ?? video.url;
+      const videoUrl = this.normalizeMediaPath(video.videoUrl ?? video.url);
       if (videoUrl) {
         rows.push({ id: randomUUID(), productId, videoUrl, sortOrder: video.sortOrder ?? index });
       }
@@ -574,9 +582,9 @@ export class ProductsService {
         lowStockThreshold: variant.lowStockThreshold ?? 5,
         unit: variant.unit?.toLowerCase(),
         customUnit: variant.customUnit,
-        imageUrl: variant.imageUrls[0] ?? null,
+        imageUrl: this.publicMediaUrl(variant.imageUrls[0]) ?? null,
         imageUrls: variant.imageUrls?.length
-          ? variant.imageUrls
+          ? variant.imageUrls.map((url) => this.publicMediaUrl(url))
           : [],
         stockStatus: this.inventory.stockStatus(variant.stockQuantity, variant.lowStockThreshold),
         sortOrder: variant.sortOrder,
@@ -585,25 +593,25 @@ export class ProductsService {
       })),
       images: product.ProductImage
         .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map((image) => image.url),
+        .map((image) => this.publicMediaUrl(image.url)),
       imageObjects: product.ProductImage
         .sort((a, b) => a.sortOrder - b.sortOrder)
         .map((image) => ({
           id: image.id,
-          url: image.url,
+          url: this.publicMediaUrl(image.url),
           sortOrder: image.sortOrder,
           isPrimary: image.isPrimary,
           createdAt: image.createdAt,
         })),
       videos: product.ProductVideo
         .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map((video) => video.videoUrl),
+        .map((video) => this.publicMediaUrl(video.videoUrl)),
       videoObjects: product.ProductVideo
         .sort((a, b) => a.sortOrder - b.sortOrder)
         .map((video) => ({
           id: video.id,
-          url: video.videoUrl,
-          videoUrl: video.videoUrl,
+          url: this.publicMediaUrl(video.videoUrl),
+          videoUrl: this.publicMediaUrl(video.videoUrl),
           sortOrder: video.sortOrder,
           createdAt: video.createdAt,
         })),
@@ -612,5 +620,37 @@ export class ProductsService {
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
     };
+  }
+
+  private normalizeMediaPath(value?: string | null): string | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+
+    try {
+      const parsed = new URL(trimmed);
+      const path = parsed.pathname.replace(/^\/+/, '');
+      return path.replace(/^api\/uploads\//, 'uploads/');
+    } catch {
+      return trimmed.replace(/^\/+/, '').replace(/^api\/uploads\//, 'uploads/');
+    }
+  }
+
+  private publicMediaUrl(value?: string | null): string {
+    if (!value) {
+      return '';
+    }
+
+    if (/^https?:\/\//i.test(value)) {
+      return value;
+    }
+
+    const publicBaseUrl = (this.config.get<string>('uploads.publicBaseUrl') ?? '').replace(/\/+$/, '');
+    return `${publicBaseUrl}/${value.replace(/^\/+/, '')}`;
   }
 }

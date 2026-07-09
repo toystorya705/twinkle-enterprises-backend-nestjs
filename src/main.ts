@@ -3,7 +3,11 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import cookieParser from 'cookie-parser';
+import { NextFunction, Request, Response } from 'express';
+import express from 'express';
 import helmet from 'helmet';
+import hpp from 'hpp';
 import { join } from 'path';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -29,10 +33,25 @@ async function bootstrap(): Promise<void> {
   const port = config.get<number>('app.port') ?? 3000;
   const uploadDestination =
     config.get<string>('uploads.destination') ?? 'uploads';
+  const trustProxy = config.get<boolean>('security.trustProxy') ?? false;
+  const requestTimeoutMs = config.get<number>('security.requestTimeoutMs') ?? 30000;
+  const bodyLimit = config.get<string>('security.bodyLimit') ?? '1mb';
+
+  app.set('trust proxy', trustProxy);
+  app.use(express.json({ limit: bodyLimit }));
+  app.use(express.urlencoded({ extended: true, limit: bodyLimit }));
+  app.use(cookieParser());
+  app.use(hpp());
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    req.setTimeout(requestTimeoutMs);
+    res.setTimeout(requestTimeoutMs);
+    next();
+  });
 
   app.use(
     helmet({
       crossOriginResourcePolicy: { policy: 'cross-origin' },
+      frameguard: { action: 'deny' },
     }),
   );
   app.useStaticAssets(join(process.cwd(), uploadDestination), {

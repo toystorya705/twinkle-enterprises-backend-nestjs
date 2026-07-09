@@ -361,6 +361,12 @@ model User {
   addedById     String?
   companyName   String?
   avatarUrl     String?
+  emailVerifiedAt DateTime?
+  failedLoginAttempts Int      @default(0)
+  lockedUntil   DateTime?
+  passwordChangedAt DateTime?
+  AuthToken     AuthToken[]
+  AuditLog      AuditLog[]
   Customer      Customer[]
   Enquiry       Enquiry[]
   Quotation     Quotation[]
@@ -370,6 +376,37 @@ model User {
   other_User    User[]          @relation("UserToUser")
   Role          Role?           @relation(fields: [roleId], references: [id])
   UserRole      UserRole[]
+}
+
+model AuthToken {
+  id        String        @id
+  userId    String
+  type      AuthTokenType
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  revokedAt DateTime?
+  createdAt DateTime      @default(now())
+  User      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([tokenHash])
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id        String   @id
+  userId    String?
+  event     String
+  ipAddress String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  User      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([event])
+  @@index([createdAt])
 }
 
 model UserRole {
@@ -470,4 +507,10 @@ enum UnitType {
   ML
   CUSTOM
   DOZ
+}
+
+enum AuthTokenType {
+  REFRESH
+  PASSWORD_RESET
+  EMAIL_VERIFICATION
 }

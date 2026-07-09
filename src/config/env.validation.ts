@@ -12,6 +12,10 @@ export function validateEnv(config: Environment): Environment {
     throw new Error('JWT_SECRET is required in production');
   }
 
+  if (config.NODE_ENV === 'production' && config.JWT_SECRET === 'replace-this-development-secret') {
+    throw new Error('JWT_SECRET must be changed in production');
+  }
+
   const port = Number(config.PORT ?? 3000);
   if (!Number.isInteger(port) || port <= 0) {
     throw new Error('PORT must be a positive integer');
@@ -20,6 +24,11 @@ export function validateEnv(config: Environment): Environment {
   const uploadMaxFileSize = Number(config.UPLOAD_MAX_FILE_SIZE ?? 10485760);
   if (!Number.isInteger(uploadMaxFileSize) || uploadMaxFileSize <= 0) {
     throw new Error('UPLOAD_MAX_FILE_SIZE must be a positive integer');
+  }
+
+  const smtpPort = Number(config.SMTP_PORT ?? 587);
+  if (!Number.isInteger(smtpPort) || smtpPort <= 0) {
+    throw new Error('SMTP_PORT must be a positive integer');
   }
 
   return config;
