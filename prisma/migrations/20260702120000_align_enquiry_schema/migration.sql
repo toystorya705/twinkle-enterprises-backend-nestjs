@@ -1,0 +1,3 @@
+-- No-op: Prisma maps Enquiry fields to the existing snake_case table columns.
+-- Keeping this migration avoids destructive renames on databases already using
+-- the hand-written Enquiry table from the initial schema.

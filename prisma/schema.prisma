@@ -1,0 +1,473 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Category {
+  id             String     @id
+  name           String
+  slug           String     @unique
+  isActive       Boolean    @default(true)
+  parentId       String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime
+  sortOrder      Int        @default(0)
+  Category       Category?  @relation("CategoryToCategory", fields: [parentId], references: [id])
+  other_Category Category[] @relation("CategoryToCategory")
+  Product        Product[]
+}
+
+model Customer {
+  id           String        @id
+  name         String
+  email        String?
+  phone        String?
+  company      String?
+  address      String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime
+  country      String?
+  isActive     Boolean       @default(true)
+  type         CustomerType  @default(CUSTOMER)
+  leadSource   LeadSource    @default(MANUAL)
+  addedById    String?
+  businessType BusinessType?
+  deletedAt    DateTime?
+  User         User?         @relation(fields: [addedById], references: [id])
+  Enquiry      Enquiry[]
+  Invoice      Invoice[]
+  Payment      Payment[]
+  Quotation    Quotation[]
+}
+
+model Enquiry {
+  id           String         @id
+  customer_id  String?
+  quotation_id String?
+  name         String         @db.VarChar(255)
+  email        String?        @db.VarChar(255)
+  phone        String?        @db.VarChar(50)
+  company      String?        @db.VarChar(255)
+  city         String?        @db.VarChar(150)
+  country      String?        @db.VarChar(150)
+  message      String?
+  enquiry_type Enquiry_type   @default(general)
+  status       Enquiry_status @default(new)
+  lead_source  String?        @default("website") @db.VarChar(50)
+  is_active    Boolean        @default(true)
+  assigned_to  String?
+  contacted_at DateTime?      @db.Timestamp(6)
+  notes        String?
+  created_at   DateTime       @default(now()) @db.Timestamp(6)
+  updated_at   DateTime       @default(now()) @db.Timestamp(6)
+  User         User?          @relation(fields: [assigned_to], references: [id], onUpdate: NoAction)
+  Customer     Customer?      @relation(fields: [customer_id], references: [id], onUpdate: NoAction)
+  Quotation    Quotation?     @relation(fields: [quotation_id], references: [id], onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)], map: "idx_enquiries_created")
+  @@index([customer_id], map: "idx_enquiries_customer")
+  @@index([email], map: "idx_enquiries_email")
+  @@index([phone], map: "idx_enquiries_phone")
+  @@index([quotation_id], map: "idx_enquiries_quotation")
+  @@index([status], map: "idx_enquiries_status")
+  @@index([enquiry_type], map: "idx_enquiries_type")
+}
+
+model InventoryItem {
+  id           String    @id
+  productId    String
+  quantity     Float     @default(0)
+  reorderLevel Float     @default(0)
+  location     String?
+  supplierId   String?
+  updatedAt    DateTime
+  Product      Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  Supplier     Supplier? @relation(fields: [supplierId], references: [id])
+}
+
+model Invoice {
+  id            String        @id
+  invoiceNumber String        @unique
+  customerName  String
+  phone         String?
+  email         String?
+  company       String?
+  address       String?
+  subtotal      Float
+  cgst          Float?
+  sgst          Float?
+  total         Float
+  paymentStatus PaymentStatus
+  status        InvoiceStatus @default(ACTIVE)
+  showLogo      Boolean       @default(false)
+  customerId    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime
+  country       String?
+  Customer      Customer?     @relation(fields: [customerId], references: [id])
+  InvoiceItem   InvoiceItem[]
+  Payment       Payment[]
+}
+
+model InvoiceItem {
+  id         String   @id
+  productId  String?
+  name       String
+  variant    String?
+  quantity   Float
+  unit       UnitType
+  price      Float
+  discount   Float?
+  gstPercent Float?
+  total      Float
+  invoiceId  String
+  Invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id
+  title     String
+  body      String
+  type      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Payment {
+  id         String        @id
+  customerId String?
+  invoiceId  String?
+  amount     Float
+  method     String?
+  status     PaymentStatus
+  reference  String?
+  createdAt  DateTime      @default(now())
+  Customer   Customer?     @relation(fields: [customerId], references: [id])
+  Invoice    Invoice?      @relation(fields: [invoiceId], references: [id])
+}
+
+model Permission {
+  id             String           @id
+  action         String
+  subject        String
+  description    String?
+  RolePermission RolePermission[]
+
+  @@unique([action, subject])
+}
+
+model Product {
+  id                String                      @id
+  name              String
+  slug              String                      @unique
+  sku               String                      @unique
+  brand             String?
+  description       String?
+  price             Float?
+  unit              UnitType
+  stockQuantity     Float?
+  categoryId        String?
+  buyEnabled        Boolean                     @default(true)
+  isActive          Boolean                     @default(true)
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime
+  lowStockThreshold Float?                      @default(5)
+  customUnit        String?
+  shortDescription  String                      @default("")
+  fullDescription   String                      @default("")
+  rating            Float                       @default(0)
+  seoTitle          String?
+  seoDescription    String?
+  seoKeywords       String[]                    @default([])
+  status            ProductStatus               @default(ACTIVE)
+  images            Unsupported("ProductImage")
+  InventoryItem     InventoryItem[]
+  Category          Category?                   @relation(fields: [categoryId], references: [id])
+  ProductImage      ProductImage[]
+  ProductVideo      ProductVideo[]
+  Review            Review[]
+  Specification     Specification[]
+  Variant           Variant[]
+}
+
+model ProductImage {
+  id        String   @id
+  url       String
+  productId String
+  sortOrder Int      @default(0)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  Product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model ProductVideo {
+  id        String   @id
+  videoUrl  String
+  sortOrder Int      @default(0)
+  productId String
+  createdAt DateTime @default(now())
+  Product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model Quotation {
+  id              String          @id
+  quotationNumber String?         @unique
+  customerName    String
+  customerEmail   String?
+  subtotal        Float           @default(0)
+  total           Float           @default(0)
+  status          QuotationStatus @default(DRAFT)
+  expiresAt       DateTime?
+  customerId      String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime
+  customerCountry String?
+  discountAmount  Float           @default(0)
+  discountPercent Float           @default(0)
+  gstPercent      Float           @default(18)
+  gstAmount       Float           @default(0)
+  grandTotal      Float           @default(0)
+  pdfUrl          String?
+  createdById     String?
+  customerPhone   String?
+  Enquiry         Enquiry[]
+  User            User?           @relation(fields: [createdById], references: [id])
+  Customer        Customer?       @relation(fields: [customerId], references: [id])
+  QuotationItem   QuotationItem[]
+  QuotationNote   QuotationNote[]
+}
+
+model QuotationItem {
+  id           String    @id
+  productId    String?
+  name         String
+  sku          String?
+  image        String?
+  description  String?
+  quantity     Float
+  unit         UnitType?
+  price        Float
+  total        Float
+  quotationId  String
+  variantLabel String?
+  createdAt    DateTime  @default(now())
+  Quotation    Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+}
+
+model QuotationNote {
+  id          String    @id
+  quotationId String
+  note        String
+  createdById String?
+  createdAt   DateTime  @default(now())
+  User        User?     @relation(fields: [createdById], references: [id])
+  Quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  @@index([createdById])
+  @@index([quotationId])
+}
+
+model Review {
+  id          String        @id
+  productId   String
+  rating      Int
+  title       String?
+  comment     String?
+  status      String        @default("pending")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime
+  userId      String?
+  Product     Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  User        User?         @relation(fields: [userId], references: [id])
+  ReviewMedia ReviewMedia[]
+
+  @@index([productId])
+  @@index([status])
+  @@index([userId])
+}
+
+model ReviewMedia {
+  id        String   @id
+  reviewId  String
+  fileUrl   String
+  fileType  String
+  createdAt DateTime @default(now())
+  Review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+}
+
+model Role {
+  id             String           @id
+  name           String           @unique
+  description    String?
+  RolePermission RolePermission[]
+  User           User[]
+  UserRole       UserRole[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  Permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  Role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model Setting {
+  id        String   @id
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+}
+
+model Specification {
+  id        String  @id
+  key       String
+  value     String
+  productId String
+  Product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Supplier {
+  id            String          @id
+  name          String
+  email         String?
+  phone         String?
+  address       String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime
+  InventoryItem InventoryItem[]
+}
+
+model User {
+  id            String          @id
+  email         String          @unique
+  passwordHash  String
+  name          String?
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime
+  phone         String?
+  country       String?
+  roleId        String?
+  addedById     String?
+  companyName   String?
+  avatarUrl     String?
+  Customer      Customer[]
+  Enquiry       Enquiry[]
+  Quotation     Quotation[]
+  QuotationNote QuotationNote[]
+  Review        Review[]
+  User          User?           @relation("UserToUser", fields: [addedById], references: [id])
+  other_User    User[]          @relation("UserToUser")
+  Role          Role?           @relation(fields: [roleId], references: [id])
+  UserRole      UserRole[]
+}
+
+model UserRole {
+  userId String
+  roleId String
+  Role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  User   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model Variant {
+  id                String   @id
+  name              String
+  sku               String?  @unique
+  price             Float?
+  productId         String
+  imageUrls         String[] @default([])
+  customUnit        String?
+  unit              UnitType @default(PCS)
+  lowStockThreshold Int?
+  stockQuantity     Float?
+  sortOrder         Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now())
+  Product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+enum BusinessType {
+  HOTEL
+  RESTAURANT
+  CATERING
+  RETAIL
+  OTHER
+}
+
+enum CustomerType {
+  LEAD
+  CUSTOMER
+}
+
+enum Enquiry_status {
+  new
+  pending
+  contacted
+  quoted
+  answered
+  closed
+  spam
+}
+
+enum Enquiry_type {
+  general
+  quotation
+  support
+}
+
+enum InvoiceStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum LeadSource {
+  MANUAL
+  WEBSITE
+  WHATSAPP
+  FACEBOOK
+  INSTAGRAM_API
+  QUOTATION_ENQUIRY
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  REFUNDED
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+  DELETED
+}
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+}
+
+enum UnitType {
+  PCS
+  KG
+  GRAM
+  LITRE
+  ML
+  CUSTOM
+  DOZ
+}

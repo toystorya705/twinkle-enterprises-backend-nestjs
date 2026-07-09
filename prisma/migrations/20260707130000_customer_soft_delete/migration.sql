@@ -1,0 +1,8 @@
+ALTER TABLE "Customer"
+ADD COLUMN "deletedAt" TIMESTAMP(3);
+
+ALTER TABLE "Product"
+ADD COLUMN "lowStockThreshold" DOUBLE PRECISION DEFAULT 5;
+
+ALTER TABLE "Product"
+ADD COLUMN "customUnit" TEXT;
