@@ -160,32 +160,31 @@ model Permission {
 }
 
 model Product {
-  id                String                      @id
+  id                String          @id
   name              String
-  slug              String                      @unique
-  sku               String                      @unique
+  slug              String          @unique
+  sku               String          @unique
   brand             String?
   description       String?
   price             Float?
   unit              UnitType
   stockQuantity     Float?
   categoryId        String?
-  buyEnabled        Boolean                     @default(true)
-  isActive          Boolean                     @default(true)
-  createdAt         DateTime                    @default(now())
+  buyEnabled        Boolean         @default(true)
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
   updatedAt         DateTime
-  lowStockThreshold Float?                      @default(5)
+  lowStockThreshold Float?          @default(5)
   customUnit        String?
-  shortDescription  String                      @default("")
-  fullDescription   String                      @default("")
-  rating            Float                       @default(0)
+  shortDescription  String          @default("")
+  fullDescription   String          @default("")
+  rating            Float           @default(0)
   seoTitle          String?
   seoDescription    String?
-  seoKeywords       String[]                    @default([])
-  status            ProductStatus               @default(ACTIVE)
-  images            Unsupported("ProductImage")
+  seoKeywords       String[]        @default([])
+  status            ProductStatus   @default(ACTIVE)
   InventoryItem     InventoryItem[]
-  Category          Category?                   @relation(fields: [categoryId], references: [id])
+  Category          Category?       @relation(fields: [categoryId], references: [id])
   ProductImage      ProductImage[]
   ProductVideo      ProductVideo[]
   Review            Review[]
@@ -219,6 +218,7 @@ model Quotation {
   quotationNumber String?         @unique
   customerName    String
   customerEmail   String?
+  customerPhone   String?
   subtotal        Float           @default(0)
   total           Float           @default(0)
   status          QuotationStatus @default(DRAFT)
@@ -234,7 +234,6 @@ model Quotation {
   grandTotal      Float           @default(0)
   pdfUrl          String?
   createdById     String?
-  customerPhone   String?
   Enquiry         Enquiry[]
   User            User?           @relation(fields: [createdById], references: [id])
   Customer        Customer?       @relation(fields: [customerId], references: [id])
@@ -348,34 +347,34 @@ model Supplier {
 }
 
 model User {
-  id            String          @id
-  email         String          @unique
-  passwordHash  String
-  name          String?
-  isActive      Boolean         @default(true)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime
-  phone         String?
-  country       String?
-  roleId        String?
-  addedById     String?
-  companyName   String?
-  avatarUrl     String?
-  emailVerifiedAt DateTime?
-  failedLoginAttempts Int      @default(0)
-  lockedUntil   DateTime?
-  passwordChangedAt DateTime?
-  AuthToken     AuthToken[]
-  AuditLog      AuditLog[]
-  Customer      Customer[]
-  Enquiry       Enquiry[]
-  Quotation     Quotation[]
-  QuotationNote QuotationNote[]
-  Review        Review[]
-  User          User?           @relation("UserToUser", fields: [addedById], references: [id])
-  other_User    User[]          @relation("UserToUser")
-  Role          Role?           @relation(fields: [roleId], references: [id])
-  UserRole      UserRole[]
+  id                  String          @id
+  email               String          @unique
+  passwordHash        String
+  name                String?
+  isActive            Boolean         @default(true)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime
+  phone               String?
+  country             String?
+  roleId              String?
+  addedById           String?
+  companyName         String?
+  avatarUrl           String?
+  emailVerifiedAt     DateTime?
+  failedLoginAttempts Int             @default(0)
+  lockedUntil         DateTime?
+  passwordChangedAt   DateTime?
+  AuditLog            AuditLog[]
+  AuthToken           AuthToken[]
+  Customer            Customer[]
+  Enquiry             Enquiry[]
+  Quotation           Quotation[]
+  QuotationNote       QuotationNote[]
+  Review              Review[]
+  User                User?           @relation("UserToUser", fields: [addedById], references: [id])
+  other_User          User[]          @relation("UserToUser")
+  Role                Role?           @relation(fields: [roleId], references: [id])
+  UserRole            UserRole[]
 }
 
 model AuthToken {
@@ -402,7 +401,7 @@ model AuditLog {
   userAgent String?
   metadata  Json?
   createdAt DateTime @default(now())
-  User      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  User      User?    @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([event])

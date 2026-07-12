@@ -65,27 +65,33 @@ export class ProductsService {
     const product = await this.prisma.transaction(async (tx) => {
       const productId = randomUUID();
       const now = new Date();
-      const primaryImageUrl = this.normalizeMediaPath(this.primaryImageUrl(dto.images)) ?? '';
-      await tx.$executeRaw`
-        INSERT INTO "Product" (
-          "id", "name", "slug", "sku", "brand", "description", "shortDescription",
-          "fullDescription", "price", "unit", "stockQuantity", "lowStockThreshold",
-          "customUnit", "status", "categoryId", "rating", "buyEnabled", "isActive",
-          "seoTitle", "seoDescription", "seoKeywords", "images", "createdAt", "updatedAt"
-        )
-        VALUES (
-          ${productId}, ${dto.name}, ${slug}, ${sku}, ${dto.brand ?? null},
-          ${dto.fullDescription ?? dto.shortDescription ?? null},
-          ${dto.shortDescription ?? ''}, ${dto.fullDescription ?? dto.shortDescription ?? ''},
-          ${dto.price ?? 0}, ${normalizeUnit(dto.unit)}::"UnitType", ${hasVariants ? null : dto.stockQuantity ?? 0},
-          ${dto.lowStockThreshold ?? 5}, ${dto.customUnit ?? null},
-          ${normalizeProductStatus(dto.status ?? (dto.isActive === false ? 'inactive' : 'active'))}::"ProductStatus",
-          ${categoryId}, ${dto.rating ?? 0}, ${dto.buyEnabled ?? true}, ${dto.isActive ?? true},
-          ${dto.seoTitle ?? null}, ${dto.seoDescription ?? null}, ${dto.seoKeywords ?? []},
-          ROW(${randomUUID()}, ${primaryImageUrl}, ${productId}, ${0}, ${true}, ${now})::"ProductImage",
-          ${now}, ${now}
-        )
-      `;
+      await tx.product.create({
+        data: {
+          id: productId,
+          name: dto.name,
+          slug,
+          sku,
+          brand: dto.brand,
+          description: dto.fullDescription ?? dto.shortDescription,
+          shortDescription: dto.shortDescription ?? '',
+          fullDescription: dto.fullDescription ?? dto.shortDescription ?? '',
+          price: dto.price ?? 0,
+          unit: normalizeUnit(dto.unit),
+          stockQuantity: hasVariants ? null : dto.stockQuantity ?? 0,
+          lowStockThreshold: dto.lowStockThreshold ?? 5,
+          customUnit: dto.customUnit,
+          status: normalizeProductStatus(dto.status ?? (dto.isActive === false ? 'inactive' : 'active')),
+          categoryId,
+          rating: dto.rating ?? 0,
+          buyEnabled: dto.buyEnabled ?? true,
+          isActive: dto.isActive ?? true,
+          seoTitle: dto.seoTitle,
+          seoDescription: dto.seoDescription,
+          seoKeywords: dto.seoKeywords ?? [],
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
 
       await this.createProductRelations(tx, productId, dto, sku);
       const created = await tx.product.findUnique({
@@ -440,20 +446,6 @@ export class ProductsService {
       key,
       value: String(value),
     }));
-  }
-
-  private primaryImageUrl(images: CreateProductDto['images']): string | undefined {
-    for (const image of images ?? []) {
-      if (typeof image === 'string' && image) {
-        return image;
-      }
-
-      if (typeof image !== 'string' && image.url) {
-        return image.url;
-      }
-    }
-
-    return undefined;
   }
 
   private imageWrites(images?: CreateProductDto['images']) {
