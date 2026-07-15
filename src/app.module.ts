@@ -27,6 +27,7 @@ import { SuppliersModule } from './modules/suppliers/suppliers.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { UsersModule } from './modules/users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { SeoModule } from './modules/seo/seo.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { PrismaModule } from './prisma/prisma.module';
     SettingsModule,
     UploadsModule,
     NotificationsModule,
+    SeoModule,
   ],
   providers: [
     {
